@@ -122,7 +122,7 @@ export default function ContactManagerPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-[#0A0A0F]/80 backdrop-blur-xl border-b border-white/10 px-4 py-3">
         <div className="flex items-center justify-between">
-          <button onClick={() => navigate('/group')} className="text-[#8B8B9E] hover:text-white">
+          <button onClick={() => navigate('/chat')} className="text-[#8B8B9E] hover:text-white">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
