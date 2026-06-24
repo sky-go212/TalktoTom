@@ -1,0 +1,34 @@
+name = "sky-chat-workers"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+account_id = "GANTI_DENGAN_ACCOUNT_ID"
+
+[vars]
+ENVIRONMENT = "production"
+JWT_SECRET = "GANTI_JWT_SECRET_MINIMUM_32_CHARS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sky-chat-db"
+database_id = "GANTI_SETELAH_BUAT_D1_DATABASE"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "bd018c394d374b3b821e55d0dab84d6d"
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "sky-chat-media"
+
+[[durable_objects.bindings]]
+name = "SUB_SERVER"
+class_name = "SubServer"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["SubServer"]
+
+[triggers]
+crons = ["0 * * * *"]
