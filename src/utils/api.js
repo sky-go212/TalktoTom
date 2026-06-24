@@ -1,7 +1,7 @@
-const API_BASE = '';
+const TOKEN_KEY = 'sky_chat_token';
 
-function getToken() {
-  return localStorage.getItem('ttt_token') || sessionStorage.getItem('ttt_token');
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 }
 
 export async function apiFetch(endpoint, options = {}) {
@@ -12,10 +12,7 @@ export async function apiFetch(endpoint, options = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const response = await fetch(endpoint, { ...options, headers });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Network error' }));
@@ -25,22 +22,19 @@ export async function apiFetch(endpoint, options = {}) {
   return response.json();
 }
 
-export async function login(code, rememberMe) {
+export async function login(code, rememberMe = false) {
   const { getDeviceFingerprint } = await import('./device.js');
   const deviceFingerprint = await getDeviceFingerprint();
-
-  return apiFetch('/api/auth/login', {
+  return apiFetch('/api/auth/validate', {
     method: 'POST',
-    body: JSON.stringify({ code, rememberMe, deviceFingerprint }),
+    body: JSON.stringify({ code: code.toUpperCase(), rememberMe, deviceFingerprint }),
   });
 }
 
 export async function logout() {
-  try {
-    await apiFetch('/api/auth/logout', { method: 'POST' });
-  } catch (e) {}
-  localStorage.removeItem('ttt_token');
-  sessionStorage.removeItem('ttt_token');
+  try { await apiFetch('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 export async function getSession() {
@@ -48,50 +42,45 @@ export async function getSession() {
 }
 
 export async function getContacts() {
-  return apiFetch('/api/contacts');
+  return apiFetch('/api/subserver/contacts');
 }
 
-export async function createContact(name, code) {
-  return apiFetch('/api/contacts', {
+export async function createContact(name) {
+  return apiFetch('/api/subserver/contacts', {
     method: 'POST',
-    body: JSON.stringify({ name, code }),
+    body: JSON.stringify({ name }),
   });
 }
 
-export async function deleteContact(code) {
-  return apiFetch(`/api/contacts/${code}`, { method: 'DELETE' });
+export async function deleteContact(contactCode) {
+  return apiFetch(`/api/subserver/contacts/${contactCode}`, { method: 'DELETE' });
 }
 
-export async function updateContact(code, data) {
-  return apiFetch(`/api/contacts/${code}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
+export async function resetContactCode(contactCode) {
+  return apiFetch(`/api/subserver/contacts/${contactCode}/reset`, { method: 'POST' });
 }
 
 export async function getGroupMessages() {
-  return apiFetch('/api/messages/group');
+  return apiFetch('/api/chat/group/history');
 }
 
 export async function getPrivateMessages(roomId) {
-  return apiFetch(`/api/messages/private?roomId=${roomId}`);
+  return apiFetch(`/api/chat/personal/history?roomId=${roomId}`);
 }
 
 export async function getChatRooms() {
-  return apiFetch('/api/chat-rooms');
+  return apiFetch('/api/chat/personal/rooms');
 }
 
 export async function uploadMedia(file) {
   const token = getToken();
   const formData = new FormData();
   formData.append('file', file);
-
   const response = await fetch('/api/media/upload', {
     method: 'POST',
     headers: token ? { 'Authorization': `Bearer ${token}` } : {},
     body: formData,
   });
-
   if (!response.ok) throw new Error('Upload failed');
   return response.json();
 }
