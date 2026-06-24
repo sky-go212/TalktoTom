@@ -1,0 +1,17 @@
+{
+  "name": "sky-chat-workers",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev src/index.js",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "kv:list": "wrangler kv key list --binding KV",
+    "setup:admin": "node ../database/setup-admin.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
