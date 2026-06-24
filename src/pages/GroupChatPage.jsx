@@ -113,7 +113,7 @@ const GroupChatPage = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
         <AnimatePresence>
           {uniqueMessages.map((msg, index) => (
-            <ChatBubble key={msg.id || `msg-${index}`} message={msg} isOwn={msg.senderCode === user.code} />
+            <ChatBubble key={msg.id || `msg-${index}`} message={msg} isOwn={msg.senderCode === user.contactCode} />
           ))}
         </AnimatePresence>
 
@@ -157,7 +157,7 @@ const GroupChatPage = () => {
       </div>
 
       {/* FAB - Admin only */}
-      {user.isAdmin && <FABMenu />}
+      {(user.role === 'admin' || user.role === 'main') && <FABMenu />}
 
       {/* Menu Dropdown */}
       <AnimatePresence>
