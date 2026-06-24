@@ -7,6 +7,7 @@ import PrivateChatListPage from './pages/PrivateChatListPage.jsx';
 import PrivateChatPage from './pages/PrivateChatPage.jsx';
 import ContactManagerPage from './pages/ContactManagerPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import AdminDashboardPage from './pages/AdminDashboardPage.jsx';
 import { AuthProvider } from './contexts/AuthContext.jsx';
 import { WebSocketProvider } from './contexts/WebSocketContext.jsx';
 
@@ -30,6 +31,7 @@ function App() {
           <Route path="/private/:roomId" element={<PrivateChatPage />} />
           <Route path="/contacts" element={<ContactManagerPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </WebSocketProvider>
