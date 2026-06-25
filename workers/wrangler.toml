@@ -15,7 +15,7 @@ ENVIRONMENT = "production"
 binding = "DB"
 database_name = "sky-chat-db"
 # Isi setelah buat D1 database di Cloudflare Dashboard
-database_id = "GANTI_SETELAH_BUAT_D1_DATABASE"
+database_id = "a42bba23-33df-46c0-abe0-c58d415282e6"
 
 [[kv_namespaces]]
 binding = "KV"
