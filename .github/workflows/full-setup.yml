@@ -43,14 +43,17 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: wrangler r2 bucket create sky-chat-media 2>&1 || true
 
-      - name: Patch wrangler.toml with real IDs
+      - name: Patch wrangler.toml with real IDs and JWT_SECRET
         env:
           DB_ID: ${{ steps.d1.outputs.DB_ID }}
           ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           sed -i "s|GANTI_DENGAN_ACCOUNT_ID|$ACCOUNT_ID|" workers/wrangler.toml
           [ -n "$DB_ID" ] && sed -i "s|GANTI_SETELAH_BUAT_D1_DATABASE|$DB_ID|" workers/wrangler.toml
-          echo "=== wrangler.toml after patch ==="
+          # Inject JWT_SECRET into [vars] for this CI run only (not committed to repo)
+          sed -i "/^\[vars\]/a JWT_SECRET = \"$JWT_SECRET\"" workers/wrangler.toml
+          echo "=== wrangler.toml (CI patched) ==="
           cat workers/wrangler.toml
 
       - name: Install Workers dependencies
@@ -64,7 +67,7 @@ jobs:
         working-directory: workers
         run: wrangler d1 execute sky-chat-db --file ../database/schema.sql --remote 2>&1 || true
 
-      - name: Deploy Workers (first deploy — no secret yet)
+      - name: Deploy Workers
         id: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -76,21 +79,6 @@ jobs:
           echo "WORKERS_URL=$WURL" >> $GITHUB_OUTPUT
           echo "Workers deployed to: $WURL"
 
-      - name: Set JWT_SECRET on deployed Workers
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        working-directory: workers
-        run: echo "$JWT_SECRET" | wrangler secret put JWT_SECRET
-
-      - name: Redeploy Workers with JWT_SECRET active
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        working-directory: workers
-        run: wrangler deploy 2>&1
-
       - name: Seed Admin Code into KV
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -99,14 +87,20 @@ jobs:
           WORKERS_URL: ${{ steps.deploy.outputs.WORKERS_URL }}
         run: node database/setup-admin.js
 
-      - name: Commit wrangler.toml with real IDs
+      - name: Commit wrangler.toml (IDs only, not JWT_SECRET)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DB_ID: ${{ steps.d1.outputs.DB_ID }}
+          ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
+          # Re-checkout clean wrangler.toml and patch ONLY IDs (no JWT_SECRET in committed file)
+          git checkout workers/wrangler.toml
+          sed -i "s|GANTI_DENGAN_ACCOUNT_ID|$ACCOUNT_ID|" workers/wrangler.toml
+          [ -n "$DB_ID" ] && sed -i "s|GANTI_SETELAH_BUAT_D1_DATABASE|$DB_ID|" workers/wrangler.toml
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add workers/wrangler.toml
-          git diff --staged --quiet || git commit -m 'chore: fill wrangler.toml with real IDs from CI'
+          git diff --staged --quiet || git commit -m 'chore: fill wrangler.toml with real account_id and database_id'
           git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
 
       - name: Print Summary
@@ -115,16 +109,20 @@ jobs:
           DB_ID: ${{ steps.d1.outputs.DB_ID }}
         run: |
           echo "================================================"
-          echo "        SKY-CHAT SETUP COMPLETE!"
+          echo "         SKY-CHAT SETUP COMPLETE!"
           echo "================================================"
           echo "Workers URL : $WORKERS_URL"
           echo "D1 DB ID    : $DB_ID"
           echo ""
           echo "LANGKAH SETERUSNYA:"
-          echo "1. Buka Cloudflare Pages Dashboard"
-          echo "2. Connect GitHub repo TalktoTom"
-          echo "3. Build command: npm run build | Output: dist"
-          echo "4. Tambah Environment Variable:"
+          echo "1. Buka https://dash.cloudflare.com -> Pages"
+          echo "2. Create application -> Pages -> Connect to Git"
+          echo "3. Pilih repo: TalktoTom"
+          echo "4. Build command: npm run build"
+          echo "5. Build output: dist"
+          echo "6. Environment variables:"
           echo "   WORKERS_URL = $WORKERS_URL"
-          echo "5. Admin Code dicetak oleh setup-admin.js di atas"
+          echo "7. Deploy!"
+          echo ""
+          echo "Admin Code sudah di-seed ke KV (lihat log 'Seed Admin Code' di atas)"
           echo "================================================"
