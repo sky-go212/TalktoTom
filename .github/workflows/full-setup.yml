@@ -1,0 +1,123 @@
+name: Full Setup and Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Create D1 Database
+        id: d1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set +e
+          OUTPUT=$(wrangler d1 create sky-chat-db 2>&1)
+          echo "$OUTPUT"
+          DB_ID=$(echo "$OUTPUT" | grep -oP 'database_id = "\K[^"]+')
+          if [ -z "$DB_ID" ]; then
+            echo "DB exists, fetching from list..."
+            LIST=$(wrangler d1 list 2>&1)
+            echo "$LIST"
+            DB_ID=$(echo "$LIST" | grep 'sky-chat-db' | grep -oP '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+          fi
+          echo "DB_ID=$DB_ID" >> $GITHUB_OUTPUT
+          echo "Resolved DB_ID=$DB_ID"
+
+      - name: Create R2 Bucket
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: wrangler r2 bucket create sky-chat-media 2>&1 || true
+
+      - name: Patch wrangler.toml with real IDs
+        env:
+          DB_ID: ${{ steps.d1.outputs.DB_ID }}
+          ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          sed -i "s|GANTI_DENGAN_ACCOUNT_ID|$ACCOUNT_ID|" workers/wrangler.toml
+          [ -n "$DB_ID" ] && sed -i "s|GANTI_SETELAH_BUAT_D1_DATABASE|$DB_ID|" workers/wrangler.toml
+          echo "=== wrangler.toml after patch ==="
+          cat workers/wrangler.toml
+
+      - name: Install Workers dependencies
+        working-directory: workers
+        run: npm install
+
+      - name: Apply D1 Schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        working-directory: workers
+        run: wrangler d1 execute sky-chat-db --file ../database/schema.sql --remote 2>&1 || true
+
+      - name: Set JWT_SECRET on Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        working-directory: workers
+        run: echo "$JWT_SECRET" | wrangler secret put JWT_SECRET
+
+      - name: Deploy Workers
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        working-directory: workers
+        run: |
+          wrangler deploy 2>&1 | tee /tmp/deploy.log
+          WURL=$(grep -oP 'https://sky-chat[^ ]+\.workers\.dev' /tmp/deploy.log | head -1)
+          echo "WORKERS_URL=$WURL" >> $GITHUB_OUTPUT
+          echo "Workers deployed to: $WURL"
+
+      - name: Seed Admin Code into KV
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          WORKERS_URL: ${{ steps.deploy.outputs.WORKERS_URL }}
+        run: node database/setup-admin.js
+
+      - name: Commit updated wrangler.toml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add workers/wrangler.toml
+          git diff --staged --quiet || git commit -m 'chore: fill wrangler.toml with real IDs from CI'
+          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+
+      - name: Print Summary
+        env:
+          WORKERS_URL: ${{ steps.deploy.outputs.WORKERS_URL }}
+          DB_ID: ${{ steps.d1.outputs.DB_ID }}
+        run: |
+          echo "================================================"
+          echo "        SKY-CHAT SETUP COMPLETE!"
+          echo "================================================"
+          echo "Workers URL : $WORKERS_URL"
+          echo "D1 DB ID    : $DB_ID"
+          echo ""
+          echo "LANGKAH SETERUSNYA:"
+          echo "1. Buka Cloudflare Pages Dashboard"
+          echo "2. Connect GitHub repo TalktoTom"
+          echo "3. Build command: npm run build | Output: dist"
+          echo "4. Tambah Environment Variable:"
+          echo "   WORKERS_URL = $WORKERS_URL"
+          echo "5. Login dengan Admin Code yang dicetak di atas"
+          echo "================================================"
