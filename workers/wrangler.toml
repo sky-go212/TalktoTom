@@ -4,7 +4,7 @@ compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Isi dengan Account ID dari Cloudflare Dashboard → kanan bawah
-account_id = "GANTI_DENGAN_ACCOUNT_ID"
+account_id = "dae83f992fc1121e1ea6c8f1ab7f1d76"
 
 [vars]
 ENVIRONMENT = "production"
