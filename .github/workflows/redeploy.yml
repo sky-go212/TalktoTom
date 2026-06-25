@@ -1,0 +1,38 @@
+name: Redeploy Workers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g wrangler@latest
+
+      - name: Inject JWT_SECRET and deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        working-directory: workers
+        run: |
+          npm install
+          sed -i "/^\[vars\]/a JWT_SECRET = \"$JWT_SECRET\"" wrangler.toml
+          echo "=== Deploying Workers ==="
+          wrangler deploy 2>&1 | tee /tmp/deploy.log
+          echo ""
+          echo "=== WORKERS URL ==="
+          grep -oP 'https://\S+\.workers\.dev' /tmp/deploy.log | head -1
+
+      - name: Verify deployment
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        working-directory: workers
+        run: |
+          echo "=== Deployment info ==="
+          wrangler deployments list --name sky-chat-workers 2>&1 | head -20
