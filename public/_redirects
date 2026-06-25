@@ -1,1 +1,3 @@
-/* /index.html 200
+# SPA fallback — all routes served by index.html
+# API and WebSocket proxied via Cloudflare Pages Functions (functions/ directory)
+/*  /index.html  200
