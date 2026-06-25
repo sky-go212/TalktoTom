@@ -64,15 +64,7 @@ jobs:
         working-directory: workers
         run: wrangler d1 execute sky-chat-db --file ../database/schema.sql --remote 2>&1 || true
 
-      - name: Set JWT_SECRET on Workers
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-        working-directory: workers
-        run: echo "$JWT_SECRET" | wrangler secret put JWT_SECRET
-
-      - name: Deploy Workers
+      - name: Deploy Workers (first deploy — no secret yet)
         id: deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -84,6 +76,21 @@ jobs:
           echo "WORKERS_URL=$WURL" >> $GITHUB_OUTPUT
           echo "Workers deployed to: $WURL"
 
+      - name: Set JWT_SECRET on deployed Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        working-directory: workers
+        run: echo "$JWT_SECRET" | wrangler secret put JWT_SECRET
+
+      - name: Redeploy Workers with JWT_SECRET active
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        working-directory: workers
+        run: wrangler deploy 2>&1
+
       - name: Seed Admin Code into KV
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -92,7 +99,7 @@ jobs:
           WORKERS_URL: ${{ steps.deploy.outputs.WORKERS_URL }}
         run: node database/setup-admin.js
 
-      - name: Commit updated wrangler.toml
+      - name: Commit wrangler.toml with real IDs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -119,5 +126,5 @@ jobs:
           echo "3. Build command: npm run build | Output: dist"
           echo "4. Tambah Environment Variable:"
           echo "   WORKERS_URL = $WORKERS_URL"
-          echo "5. Login dengan Admin Code yang dicetak di atas"
+          echo "5. Admin Code dicetak oleh setup-admin.js di atas"
           echo "================================================"
