@@ -1,0 +1,111 @@
+name: Finish Setup (Schema + Admin Seed)
+
+on:
+  workflow_dispatch:
+    inputs:
+      d1_database_id:
+        description: 'D1 Database ID (dari Cloudflare Dashboard → D1 → sky-chat-db → UUID)'
+        required: true
+        type: string
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Patch wrangler.toml with real IDs
+        env:
+          DB_ID: ${{ inputs.d1_database_id }}
+          ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          sed -i "s|GANTI_DENGAN_ACCOUNT_ID|$ACCOUNT_ID|" workers/wrangler.toml
+          sed -i "s|GANTI_SETELAH_BUAT_D1_DATABASE|$DB_ID|" workers/wrangler.toml
+          sed -i "/^\[vars\]/a JWT_SECRET = \"$JWT_SECRET\"" workers/wrangler.toml
+          echo "=== wrangler.toml patched ==="
+          grep -E "account_id|database_id|JWT_SECRET" workers/wrangler.toml
+
+      - name: Install Workers dependencies
+        working-directory: workers
+        run: npm install
+
+      - name: Apply D1 Schema
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        working-directory: workers
+        run: |
+          echo "Applying schema to sky-chat-db..."
+          wrangler d1 execute sky-chat-db --file ../database/schema.sql --remote
+          echo "Schema applied successfully!"
+
+      - name: Redeploy Workers with correct D1 binding
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        working-directory: workers
+        run: |
+          wrangler deploy 2>&1 | tee /tmp/deploy.log
+          WURL=$(grep -oP 'https://\S+\.workers\.dev' /tmp/deploy.log | head -1)
+          echo "WORKERS_URL=$WURL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $WURL"
+
+      - name: Seed Admin Code
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          WORKERS_URL: ${{ steps.deploy.outputs.WORKERS_URL }}
+        run: node database/setup-admin.js
+
+      - name: Commit wrangler.toml (without JWT_SECRET)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DB_ID: ${{ inputs.d1_database_id }}
+          ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          git checkout workers/wrangler.toml
+          sed -i "s|GANTI_DENGAN_ACCOUNT_ID|$ACCOUNT_ID|" workers/wrangler.toml
+          sed -i "s|GANTI_SETELAH_BUAT_D1_DATABASE|$DB_ID|" workers/wrangler.toml
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add workers/wrangler.toml
+          git diff --staged --quiet || git commit -m 'chore: fill wrangler.toml with real account_id and database_id'
+          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git HEAD:main
+
+      - name: SETUP COMPLETE - Summary
+        env:
+          WORKERS_URL: ${{ steps.deploy.outputs.WORKERS_URL }}
+          DB_ID: ${{ inputs.d1_database_id }}
+        run: |
+          echo "================================================"
+          echo "     SKY-CHAT SETUP SELESAI SEPENUHNYA!"
+          echo "================================================"
+          echo ""
+          echo "Workers URL : $WORKERS_URL"
+          echo "D1 Database : $DB_ID"
+          echo ""
+          echo "Admin Code sudah di-seed ke KV"
+          echo "Lihat output 'Seed Admin Code' di atas untuk kode login"
+          echo ""
+          echo "LANGKAH TERAKHIR - Cloudflare Pages:"
+          echo "1. dash.cloudflare.com → Workers & Pages"
+          echo "2. Create application → Pages → Connect to Git"
+          echo "3. Pilih repo: TalktoTom"
+          echo "4. Build command: npm run build"
+          echo "5. Build output: dist"
+          echo "6. Environment Variables:"
+          echo "   WORKERS_URL = $WORKERS_URL"
+          echo "7. Save and Deploy"
+          echo "================================================"
