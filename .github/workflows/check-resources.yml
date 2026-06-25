@@ -1,0 +1,43 @@
+name: Check Cloudflare Resources
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g wrangler@latest
+
+      - name: List all Cloudflare resources
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          echo "=== ACCOUNT INFO ==="
+          wrangler whoami
+
+          echo ""
+          echo "=== D1 DATABASES ==="
+          wrangler d1 list
+
+          echo ""
+          echo "=== R2 BUCKETS ==="
+          wrangler r2 bucket list
+
+          echo ""
+          echo "=== KV NAMESPACES ==="
+          wrangler kv namespace list
+
+          echo ""
+          echo "=== KV KEYS ==="
+          wrangler kv key list --namespace-id bd018c394d374b3b821e55d0dab84d6d 2>&1 || true
+
+          echo ""
+          echo "=== KV: admin_code value ==="
+          wrangler kv key get "admin_code" --namespace-id bd018c394d374b3b821e55d0dab84d6d 2>&1 || true
+
+          echo ""
+          echo "=== WORKERS DEPLOYMENTS ==="
+          wrangler deployments list --name sky-chat-workers 2>&1 || true
