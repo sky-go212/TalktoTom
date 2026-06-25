@@ -1,5 +1,6 @@
 name = "sky-chat-workers"
 main = "src/index.js"
+workers_dev = true
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
