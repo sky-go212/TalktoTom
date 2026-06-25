@@ -22,9 +22,6 @@ database_id = "a42bba23-33df-46c0-abe0-c58d415282e6"
 binding = "KV"
 id = "bd018c394d374b3b821e55d0dab84d6d"
 
-[[r2_buckets]]
-binding = "R2"
-bucket_name = "sky-chat-media"
 
 [[durable_objects.bindings]]
 name = "SUB_SERVER"
