@@ -8,58 +8,58 @@ const SettingsPage = () => {
   const { user, logout } = useAuth();
 
   return (
-    <div className="h-screen bg-background flex flex-col">
-      <header className="glass sticky top-0 z-40 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2">
+    <div className="page-container">
+      <div className="page-header">
+        <div className="flex items-center gap-3 h-10">
+          <button onClick={() => navigate(-1)} className="icon-btn -ml-1">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-bold text-lg">Settings</h1>
+          <span className="font-semibold text-sm">Settings</span>
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-        <div className="glass rounded-xl p-4 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-2xl font-bold">
+      <div className="page-content px-3 py-4 space-y-3 no-scrollbar">
+        {/* Profile Card */}
+        <div className="bg-white/5 border border-white/8 rounded-2xl p-4 flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-[#FF8E53] flex items-center justify-center text-xl font-bold flex-shrink-0">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div>
-            <p className="font-bold text-lg">{user?.name}</p>
-            <p className="text-sm text-text-muted font-mono">{user?.code}</p>
-            {user?.isAdmin && <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Admin</span>}
+            <p className="font-bold">{user?.name}</p>
+            <p className="text-xs text-white/40 font-mono mt-0.5">{user?.contactCode}</p>
+            {user?.role === 'admin' && (
+              <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full mt-1 inline-block">Admin</span>
+            )}
           </div>
         </div>
 
-        <div className="space-y-2">
-          <button className="w-full glass rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 text-left">
-            <Bell className="w-5 h-5 text-primary" />
-            <div className="flex-1">
-              <p className="font-semibold">Notifications</p>
-              <p className="text-xs text-text-muted">Push notification settings</p>
-            </div>
-          </button>
-
-          <button className="w-full glass rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 text-left">
-            <Shield className="w-5 h-5 text-secondary" />
-            <div className="flex-1">
-              <p className="font-semibold">Privacy</p>
-              <p className="text-xs text-text-muted">Security settings</p>
-            </div>
-          </button>
-
-          <button className="w-full glass rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 text-left">
-            <Info className="w-5 h-5 text-gold" />
-            <div className="flex-1">
-              <p className="font-semibold">About</p>
-              <p className="text-xs text-text-muted">Talking to Tom v1.0</p>
-            </div>
-          </button>
+        {/* Settings Items */}
+        <div className="bg-white/5 border border-white/8 rounded-2xl overflow-hidden">
+          {[
+            { icon: Bell, label: 'Notifikasi', sub: 'Push notification settings', color: 'text-primary' },
+            { icon: Shield, label: 'Privasi', sub: 'Security settings', color: 'text-cyan-400' },
+            { icon: Info, label: 'Tentang', sub: 'SKY-CHAT v1.0', color: 'text-yellow-400' },
+          ].map(({ icon: Icon, label, sub, color }, i, arr) => (
+            <button
+              key={label}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/5 active:bg-white/8 text-left transition-colors ${i < arr.length - 1 ? 'border-b border-white/5' : ''}`}
+            >
+              <Icon className={`w-5 h-5 ${color} flex-shrink-0`} />
+              <div>
+                <p className="font-semibold text-sm">{label}</p>
+                <p className="text-xs text-white/40">{sub}</p>
+              </div>
+            </button>
+          ))}
         </div>
 
-        <button onClick={logout}
-                className="w-full glass rounded-xl p-4 flex items-center gap-3 hover:bg-white/10 text-error text-left mt-8">
-          <LogOut className="w-5 h-5" />
-          <span className="font-semibold">Logout</span>
+        {/* Logout */}
+        <button
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl hover:bg-red-500/15 active:bg-red-500/20 transition-colors text-left"
+        >
+          <LogOut className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <span className="font-semibold text-sm text-red-400">Logout</span>
         </button>
       </div>
     </div>
