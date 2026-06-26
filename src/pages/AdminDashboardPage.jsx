@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -24,7 +26,7 @@ export default function AdminDashboardPage() {
   async function fetchSubServers() {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/subserver', {
+      const res = await fetch(`${API_BASE}/api/admin/subserver`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -39,7 +41,7 @@ export default function AdminDashboardPage() {
     if (!newName.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/subserver', {
+      const res = await fetch(`${API_BASE}/api/admin/subserver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ name: newName.trim() })
