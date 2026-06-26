@@ -40,8 +40,8 @@ export function WebSocketProvider({ children }) {
       ws.current.close();
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}/websocket?subId=${user.subId || ''}`);
+    const wsBase = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
+    const socket = new WebSocket(`${wsBase}/websocket?subId=${user.subId || ''}`);
     ws.current = socket;
 
     socket.onopen = () => {
