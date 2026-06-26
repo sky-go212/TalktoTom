@@ -1,8 +1,8 @@
 import { requireAuth } from './auth.js';
 import { dbAll, dbFirst, dbRun } from '../utils/d1.js';
 
-const GROUP_MSG_TTL = 86400 * 2;   // 48h
-const DM_MSG_TTL = 86400 * 2;      // 48h
+const GROUP_MSG_TTL = 86400 * 2;
+const DM_MSG_TTL = 86400 * 2;
 
 export async function handleChat(request, env, ctx) {
   const user = await requireAuth(request, env);
@@ -60,6 +60,20 @@ async function sendMessage(request, env, ctx, user) {
   const subId = user.subId;
   const id = subId.replace(/-/g, '_');
   const now = Math.floor(Date.now() / 1000);
+  const msgId = `rest-${now}-${Math.random().toString(36).slice(2)}`;
+
+  const outMsg = {
+    id: msgId,
+    subId,
+    scope,
+    senderCode: user.contactCode,
+    senderName: user.name,
+    content: content || null,
+    contentType: contentType || 'text',
+    mediaUrl: mediaUrl || null,
+    roomId: roomId || null,
+    time: now,
+  };
 
   if (scope === 'group') {
     ctx.waitUntil(dbRun(env,
@@ -79,7 +93,22 @@ async function sendMessage(request, env, ctx, user) {
     })());
   }
 
-  return json({ success: true });
+  // Fix #5: broadcast via DO setelah persist, agar semua user online dapat pesan real-time
+  ctx.waitUntil((async () => {
+    try {
+      const doId = env.SUB_SERVER.idFromName(subId);
+      const doStub = env.SUB_SERVER.get(doId);
+      await doStub.fetch('https://internal/internal/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(outMsg),
+      });
+    } catch (e) {
+      console.error('DO broadcast error:', e);
+    }
+  })());
+
+  return json({ success: true, id: msgId });
 }
 
 function json(data) { return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }); }
