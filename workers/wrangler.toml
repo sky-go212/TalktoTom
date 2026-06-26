@@ -33,3 +33,7 @@ new_classes = ["SubServer"]
 
 [triggers]
 crons = ["0 * * * *"]
+
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "32f73da9a7343b983c2932157f3518b2"
