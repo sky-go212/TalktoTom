@@ -29,7 +29,7 @@ class_name = "SubServer"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["SubServer"]
+new_sqlite_classes = ["SubServer"]
 
 [triggers]
 crons = ["0 * * * *"]
