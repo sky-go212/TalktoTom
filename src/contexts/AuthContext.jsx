@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'sky_chat_token';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -10,7 +11,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
     if (token) {
-      fetch('/api/auth/session', { headers: { 'Authorization': `Bearer ${token}` } })
+      fetch(`${API_BASE}/api/auth/session`, { headers: { 'Authorization': `Bearer ${token}` } })
         .then(res => res.ok ? res.json() : null)
         .then(data => {
           if (data && data.contactCode) setUser({ ...data, token });
@@ -25,7 +26,7 @@ export function AuthProvider({ children }) {
 
   const login = async (code, rememberMe = false) => {
     try {
-      const res = await fetch('/api/auth/validate', {
+      const res = await fetch(`${API_BASE}/api/auth/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: code.toUpperCase(), rememberMe }),
@@ -45,7 +46,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     const token = localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
     if (token) {
-      try { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); } catch (e) {}
+      try { await fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); } catch (e) {}
     }
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
