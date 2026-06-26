@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export default function ContactManagerPage() {
   const [contacts, setContacts] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -24,7 +26,7 @@ export default function ContactManagerPage() {
   async function fetchContacts() {
     setLoading(true);
     try {
-      const res = await fetch('/api/subserver/contacts', {
+      const res = await fetch(`${API_BASE}/api/subserver/contacts`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -42,7 +44,7 @@ export default function ContactManagerPage() {
     if (!newContactName.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/subserver/contacts', {
+      const res = await fetch(`${API_BASE}/api/subserver/contacts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
