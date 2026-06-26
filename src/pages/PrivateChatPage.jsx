@@ -37,10 +37,10 @@ const PrivateChatPage = () => {
       const data = await api.getPrivateMessages(roomId);
       setLocalMessages(data.messages || []);
       if (data.messages?.length > 0) {
-        const otherMsg = data.messages.find(m => m.sender_code !== user.code);
-        if (otherMsg) setContactName(otherMsg.sender_name || 'Unknown');
+        const other = data.messages.find(m => m.sender_code !== user.contactCode);
+        if (other) setContactName(other.sender_name || other.sender_code || 'Chat');
       }
-    } catch (e) { console.error('Load messages error:', e); }
+    } catch {}
   };
 
   const handleInputChange = (value) => {
@@ -67,10 +67,9 @@ const PrivateChatPage = () => {
     try {
       const { url } = await api.uploadMedia(file);
       sendPrivateMessage(roomId, null, url, 'image');
-    } catch (err) { console.error('Upload error:', err); }
+    } catch {}
   };
 
-  // Fix #2: prefix D1 ids to avoid collision with WS ids
   const roomWsMessages = messages.filter(m => m.roomId === roomId);
   const normalizedLocal = localMessages.map(m => ({
     ...m, _dedupKey: `d1-${m.id}`,
@@ -85,48 +84,52 @@ const PrivateChatPage = () => {
 
   if (!user) return null;
 
+  const initials = (contactName || 'CH').slice(0, 2).toUpperCase();
+
   return (
-    <div className="h-screen bg-background flex flex-col">
-      <header className="glass sticky top-0 z-40 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/private')} className="p-2 -ml-2">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="font-bold text-lg">{contactName || 'Chat Pribadi'}</h1>
-              <div className="flex items-center gap-1 text-xs text-success">
-                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-success' : 'bg-error'}`} />
-                <span>{connected ? 'Online' : 'Offline'}</span>
-              </div>
+    <div className="page-container">
+      {/* Header */}
+      <div className="page-header">
+        <div className="flex items-center gap-3 h-10">
+          <button onClick={() => navigate('/private')} className="icon-btn -ml-1 flex-shrink-0">
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/40 to-[#FF8E53]/30 flex items-center justify-center text-xs font-bold border border-primary/20 flex-shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-sm truncate">{contactName || 'Chat Pribadi'}</span>
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
             </div>
+            <span className="text-xs text-white/40">{connected ? 'online' : 'offline'}</span>
           </div>
         </div>
-      </header>
+      </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+      {/* Messages */}
+      <div className="page-content px-3 py-3 space-y-3 no-scrollbar">
         <AnimatePresence>
           {uniqueMessages.map((msg, index) => (
-            <ChatBubble key={msg.id || `msg-${index}`} message={msg} isOwn={msg.senderCode === user.contactCode} />
+            <ChatBubble key={msg._dedupKey || msg.id || index} message={msg} isOwn={msg.senderCode === user.contactCode} />
           ))}
         </AnimatePresence>
-
         {Object.entries(typingUsers)
-          .filter(([code, isTyping]) => isTyping && code !== user.code)
+          .filter(([code, isTyping]) => isTyping && code !== user.contactCode)
           .map(([code]) => <TypingIndicator key={code} contactCode={code} />)}
-
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="glass p-3 pb-safe">
+      {/* Input */}
+      <div className="page-footer">
         {showRecorder ? (
-          <VoiceRecorder 
+          <VoiceRecorder
             onCancel={() => setShowRecorder(false)}
             onSend={(audioUrl) => { sendPrivateMessage(roomId, null, audioUrl, 'voice'); setShowRecorder(false); }}
           />
         ) : (
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowRecorder(true)} className="p-3 glass rounded-xl text-primary">
+            <button onClick={() => setShowRecorder(true)} className="icon-btn text-primary flex-shrink-0">
               <Mic className="w-5 h-5" />
             </button>
             <input
@@ -135,13 +138,13 @@ const PrivateChatPage = () => {
               onChange={(e) => handleInputChange(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Tulis pesan..."
-              className="flex-1 input-glass text-sm"
+              className="input-glass flex-1 text-sm py-2.5"
             />
             <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageSelect} />
-            <button onClick={() => fileInputRef.current?.click()} className="p-3 glass rounded-xl text-primary">
+            <button onClick={() => fileInputRef.current?.click()} className="icon-btn text-primary flex-shrink-0">
               <Image className="w-5 h-5" />
             </button>
-            <button onClick={handleSend} disabled={!inputText.trim()} className="p-3 gradient-btn rounded-xl disabled:opacity-50">
+            <button onClick={handleSend} disabled={!inputText.trim()} className="send-btn flex-shrink-0">
               <Send className="w-5 h-5" />
             </button>
           </div>
