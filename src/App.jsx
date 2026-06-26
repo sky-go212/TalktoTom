@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import SplashScreen from './components/SplashScreen.jsx';
 import VerifyAgePage from './components/VerifyAgePage.jsx';
 import GroupChatPage from './pages/GroupChatPage.jsx';
 import PrivateChatListPage from './pages/PrivateChatListPage.jsx';
@@ -15,11 +14,19 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 3000);
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+      // Sembunyikan native HTML splash (#splash-root di index.html)
+      const nativeSplash = document.getElementById('splash-root');
+      if (nativeSplash) {
+        nativeSplash.classList.add('hidden');
+        setTimeout(() => nativeSplash.remove(), 600);
+      }
+    }, 2800);
     return () => clearTimeout(timer);
   }, []);
 
-  if (showSplash) return <SplashScreen />;
+  if (showSplash) return null;
 
   return (
     <AuthProvider>
