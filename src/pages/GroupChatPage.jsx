@@ -66,8 +66,18 @@ const GroupChatPage = () => {
     } catch (err) { console.error('Upload error:', err); }
   };
 
-  const allMessages = [...localMessages, ...messages];
-  const uniqueMessages = Array.from(new Map(allMessages.map(m => [m.id || m.timestamp, m])).values());
+  // Fix #2: prefix D1 ids to avoid collision with WS ids
+  const groupWsMessages = messages.filter(m => m.scope === 'group' || !m.scope);
+  const normalizedLocal = localMessages.map(m => ({
+    ...m, _dedupKey: `d1-${m.id}`,
+    senderCode: m.senderCode || m.sender_code,
+    senderName: m.senderName || m.sender_name,
+    time: m.time || m.created_at,
+  }));
+  const normalizedWs = groupWsMessages.map(m => ({ ...m, _dedupKey: m.id }));
+  const allMessages = [...normalizedLocal, ...normalizedWs];
+  const uniqueMessages = Array.from(new Map(allMessages.map(m => [m._dedupKey, m])).values())
+    .sort((a, b) => (a.created_at || a.time || 0) - (b.created_at || b.time || 0));
 
   if (!user) return null;
 
