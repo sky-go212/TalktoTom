@@ -1,5 +1,11 @@
 const TOKEN_KEY = 'sky_chat_token';
 
+// Gunakan VITE_API_URL di production (Cloudflare Pages → Worker)
+const API_BASE = import.meta.env.VITE_API_URL || '';
+const WS_BASE = import.meta.env.VITE_WS_URL || '';
+
+export { API_BASE, WS_BASE };
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 }
@@ -7,7 +13,7 @@ export function getToken() {
 export async function apiFetch(endpoint, options = {}) {
   const token = getToken();
   const headers = { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }), ...options.headers };
-  const response = await fetch(endpoint, { ...options, headers });
+  const response = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Network error' }));
     throw new Error(error.error || `HTTP ${response.status}`);
@@ -40,7 +46,7 @@ export async function uploadMedia(file) {
   const token = getToken();
   const formData = new FormData();
   formData.append('file', file);
-  const response = await fetch('/api/media/upload', { method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: formData });
+  const response = await fetch(`${API_BASE}/api/media/upload`, { method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: formData });
   if (!response.ok) throw new Error('Upload failed');
   return response.json();
 }
