@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Mic, Image, MoreVertical, MessageCircle, Users } from 'lucide-react';
+import { Send, Mic, Image, MoreVertical, Users, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useWebSocket } from '../contexts/WebSocketContext.jsx';
 import ChatBubble from '../components/ChatBubble.jsx';
@@ -36,7 +36,7 @@ const GroupChatPage = () => {
     try {
       const data = await api.getGroupMessages();
       setLocalMessages(data.messages || []);
-    } catch (e) { console.error('Load messages error:', e); }
+    } catch (e) {}
   };
 
   const handleInputChange = (value) => {
@@ -63,10 +63,9 @@ const GroupChatPage = () => {
     try {
       const { url } = await api.uploadMedia(file);
       sendGroupMessage(null, url, 'image');
-    } catch (err) { console.error('Upload error:', err); }
+    } catch {}
   };
 
-  // Fix #2: prefix D1 ids to avoid collision with WS ids
   const groupWsMessages = messages.filter(m => m.scope === 'group' || !m.scope);
   const normalizedLocal = localMessages.map(m => ({
     ...m, _dedupKey: `d1-${m.id}`,
@@ -82,68 +81,62 @@ const GroupChatPage = () => {
   if (!user) return null;
 
   return (
-    <div className="h-screen bg-background flex flex-col">
+    <div className="page-container">
       {/* Header */}
-      <header className="glass sticky top-0 z-40 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/private')} className="p-2 -ml-2 hover:bg-white/10 rounded-lg">
-              <MessageCircle className="w-5 h-5 text-text-muted" />
-            </button>
+      <div className="page-header">
+        <div className="flex items-center justify-between h-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-[#FF8E53] flex items-center justify-center text-xs font-bold">
+              {user.name?.charAt(0).toUpperCase()}
+            </div>
             <div>
-              <h1 className="font-bold text-lg">Ruang Umum</h1>
-              <div className="flex items-center gap-1 text-xs text-success">
-                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-success animate-pulse' : 'bg-error'}`} />
-                <span>{connected ? 'Online' : 'Connecting...'}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-sm leading-tight">Ruang Umum</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`} />
               </div>
+              <span className="text-xs text-white/40">{connected ? 'terhubung' : 'menghubungkan...'}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate('/contacts')} className="p-2 glass rounded-lg hover:bg-white/10">
-              <Users className="w-5 h-5" />
+          <div className="flex items-center gap-1">
+            <button onClick={() => navigate('/contacts')} className="icon-btn">
+              <Users className="w-4 h-4 text-white/60" />
             </button>
-            <button onClick={() => setShowMenu(!showMenu)} className="p-2 glass rounded-lg hover:bg-white/10 relative">
-              <MoreVertical className="w-5 h-5" />
+            <button onClick={() => setShowMenu(!showMenu)} className="icon-btn relative">
+              <MoreVertical className="w-4 h-4 text-white/60" />
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* Tab Switcher */}
-      <div className="flex border-b border-white/10">
-        <button className="flex-1 py-3 text-primary border-b-2 border-primary font-semibold text-sm">
-          👥 Ruang Umum
-        </button>
-        <button onClick={() => navigate('/private')} className="flex-1 py-3 text-text-muted text-sm">
-          💬 Chat Pribadi
-        </button>
+      {/* Tab Bar */}
+      <div className="tab-bar">
+        <button className="tab-btn tab-btn-active">👥 Ruang Umum</button>
+        <button onClick={() => navigate('/private')} className="tab-btn">💬 Chat Pribadi</button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+      <div className="page-content px-3 py-3 space-y-3 no-scrollbar">
         <AnimatePresence>
           {uniqueMessages.map((msg, index) => (
-            <ChatBubble key={msg.id || `msg-${index}`} message={msg} isOwn={msg.senderCode === user.contactCode} />
+            <ChatBubble key={msg._dedupKey || msg.id || index} message={msg} isOwn={msg.senderCode === user.contactCode} />
           ))}
         </AnimatePresence>
-
         {Object.entries(typingUsers)
-          .filter(([code, isTyping]) => isTyping && code !== user.code)
+          .filter(([code, isTyping]) => isTyping && code !== user.contactCode)
           .map(([code]) => <TypingIndicator key={code} contactCode={code} />)}
-
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Bar */}
-      <div className="glass p-3 pb-safe">
+      {/* Input */}
+      <div className="page-footer">
         {showRecorder ? (
-          <VoiceRecorder 
+          <VoiceRecorder
             onCancel={() => setShowRecorder(false)}
             onSend={(audioUrl) => { sendGroupMessage(null, audioUrl, 'voice'); setShowRecorder(false); }}
           />
         ) : (
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowRecorder(true)} className="p-3 glass rounded-xl text-primary hover:bg-white/10">
+            <button onClick={() => setShowRecorder(true)} className="icon-btn text-primary flex-shrink-0">
               <Mic className="w-5 h-5" />
             </button>
             <input
@@ -152,41 +145,50 @@ const GroupChatPage = () => {
               onChange={(e) => handleInputChange(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Tulis pesan..."
-              className="flex-1 input-glass text-sm"
+              className="input-glass flex-1 text-sm py-2.5"
             />
             <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageSelect} />
-            <button onClick={() => fileInputRef.current?.click()} className="p-3 glass rounded-xl text-primary hover:bg-white/10">
+            <button onClick={() => fileInputRef.current?.click()} className="icon-btn text-primary flex-shrink-0">
               <Image className="w-5 h-5" />
             </button>
-            <button onClick={handleSend} disabled={!inputText.trim()}
-                    className="p-3 gradient-btn rounded-xl disabled:opacity-50">
+            <button onClick={handleSend} disabled={!inputText.trim()} className="send-btn flex-shrink-0">
               <Send className="w-5 h-5" />
             </button>
           </div>
         )}
       </div>
 
-      {/* FAB - Admin only */}
       {(user.role === 'admin' || user.role === 'main') && <FABMenu />}
 
-      {/* Menu Dropdown */}
+      {/* Dropdown Menu */}
       <AnimatePresence>
         {showMenu && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute top-16 right-4 glass-strong rounded-xl p-2 z-50 min-w-[180px]"
-          >
-            <button onClick={() => { navigate('/settings'); setShowMenu(false); }}
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 text-sm">
-              Settings
-            </button>
-            <button onClick={() => { logout(); setShowMenu(false); }}
-                    className="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 text-error text-sm">
-              Logout
-            </button>
-          </motion.div>
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -8 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-20 right-3 z-50 bg-[#1C1C24] border border-white/10 rounded-2xl p-1.5 min-w-[160px] shadow-xl"
+            >
+              <button
+                onClick={() => { navigate('/settings'); setShowMenu(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 text-sm text-left"
+              >
+                <Settings className="w-4 h-4 text-white/50" />
+                <span>Settings</span>
+              </button>
+              <div className="h-px bg-white/5 mx-2 my-1" />
+              <button
+                onClick={() => { logout(); setShowMenu(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-sm text-left text-red-400"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
